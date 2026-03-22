@@ -2,26 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Advanced 3D Earth</title>
-<style>
-    body { margin: 0; overflow: hidden; background: black; }
-    canvas { display: block; }
+<title>3D Earth Pro</title>
 
-    #info {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        color: white;
-        font-family: Arial;
-        background: rgba(0,0,0,0.5);
-        padding: 10px;
-        border-radius: 8px;
-    }
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+}
+
+#info {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-family: Arial;
+    background: rgba(0,0,0,0.6);
+    padding: 12px;
+    border-radius: 10px;
+}
 </style>
 </head>
+
 <body>
 
-<div id="info">Click on Earth 🌍</div>
+<div id="info">🌍 Click on Earth</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
@@ -41,7 +46,7 @@ document.body.appendChild(renderer.domElement);
 // Controls
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.autoRotate = true;
+controls.autoRotate = false;
 
 // Lighting
 const light = new THREE.PointLight(0xffffff, 2);
@@ -54,7 +59,6 @@ scene.add(ambient);
 // Earth
 const geometry = new THREE.SphereGeometry(1, 64, 64);
 const textureLoader = new THREE.TextureLoader();
-
 const earthTexture = textureLoader.load(
   "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
 );
@@ -73,7 +77,7 @@ const atmMat = new THREE.MeshBasicMaterial({
 const atmosphere = new THREE.Mesh(atmGeo, atmMat);
 scene.add(atmosphere);
 
-// 🌌 Stars
+// Stars
 const starGeo = new THREE.BufferGeometry();
 const starCount = 10000;
 const posArray = [];
@@ -91,27 +95,29 @@ const starMat = new THREE.PointsMaterial({color:0xffffff,size:0.7});
 const stars = new THREE.Points(starGeo, starMat);
 scene.add(stars);
 
-// 🪐 Planet
+// Planet
 const planetGeo = new THREE.SphereGeometry(0.3,32,32);
 const planetMat = new THREE.MeshStandardMaterial({color:0xff8844});
 const planet = new THREE.Mesh(planetGeo, planetMat);
 planet.position.set(3,1,-2);
 scene.add(planet);
 
-// 🌍 Country Data Load
-let countries = [];
+// Rotation control
+let isSpinning = true;
 
+// Load countries
+let countries = [];
 fetch("countries.geo.json")
 .then(res => res.json())
 .then(data => {
     countries = data.features;
-    console.log("Countries loaded:", countries.length);
 });
 
-// 🖱️ Click Detection
+// Raycaster
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+// Click event
 window.addEventListener("click",(event)=>{
     mouse.x = (event.clientX / window.innerWidth)*2 - 1;
     mouse.y = -(event.clientY / window.innerHeight)*2 + 1;
@@ -120,16 +126,76 @@ window.addEventListener("click",(event)=>{
     const intersects = raycaster.intersectObject(earth);
 
     if(intersects.length > 0){
-        document.getElementById("info").innerText = "🌍 Earth clicked!";
+
+        // Toggle spin
+        isSpinning = !isSpinning;
+
+        // Get 3D point
+        const point = intersects[0].point;
+
+        // Convert to lat/lon
+        const lat = 90 - (Math.acos(point.y / 1) * 180 / Math.PI);
+        const lon = ((Math.atan2(point.z, point.x)) * 180 / Math.PI);
+
+        const country = findCountry(lat, lon);
+
+        if(country){
+            document.getElementById("info").innerText = "🌍 " + country;
+        } else {
+            document.getElementById("info").innerText = "🌊 Ocean / Unknown";
+        }
     }
 });
+
+// Country detection
+function findCountry(lat, lon){
+    for(let i = 0; i < countries.length; i++){
+        const geo = countries[i].geometry;
+
+        if(geo.type === "Polygon"){
+            if(pointInPolygon([lon, lat], geo.coordinates[0])){
+                return countries[i].properties.name;
+            }
+        }
+
+        if(geo.type === "MultiPolygon"){
+            for(let j = 0; j < geo.coordinates.length; j++){
+                if(pointInPolygon([lon, lat], geo.coordinates[j][0])){
+                    return countries[i].properties.name;
+                }
+            }
+        }
+    }
+    return null;
+}
+
+// Point inside polygon
+function pointInPolygon(point, vs) {
+    let x = point[0], y = point[1];
+    let inside = false;
+
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        let xi = vs[i][0], yi = vs[i][1];
+        let xj = vs[j][0], yj = vs[j][1];
+
+        let intersect = ((yi > y) != (yj > y)) &&
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+
+        if (intersect) inside = !inside;
+    }
+
+    return inside;
+}
 
 // Animation
 function animate(){
     requestAnimationFrame(animate);
 
-    earth.rotation.y += 0.001;
-    planet.rotation.y += 0.01;
+    if(isSpinning){
+        earth.rotation.y += 0.0008;
+    }
+
+    planet.rotation.y += 0.005;
 
     controls.update();
     renderer.render(scene,camera);
