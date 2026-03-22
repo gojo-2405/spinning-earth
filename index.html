@@ -53,9 +53,7 @@
 
     // Texture
     const textureLoader = new THREE.TextureLoader();
-    const earthTexture = textureLoader.load(
-        "https://threejs.org/examples/textures/earth_atmos_2048.jpg"
-    );
+    const earthTexture = textureLoader.load("earth.jpg");
 
     const material = new THREE.MeshStandardMaterial({
         map: earthTexture
@@ -65,7 +63,7 @@
     scene.add(earth);
 
     // Light (Sun effect)
-    const light = new THREE.PointLight(0xffffff, 2);
+    const light = new THREE.PointLight(0xffffff, 3);
     light.position.set(5, 3, 5);
     scene.add(light);
 
