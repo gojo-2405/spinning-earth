@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cinematic Earth</title>
+<title>Realistic Earth Final</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; }
@@ -32,8 +32,8 @@ body { margin:0; overflow:hidden; background:black; }
 const scene = new THREE.Scene();
 
 // Camera
-const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 2000);
-camera.position.z = 4;
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 5000);
+camera.position.z = 5;
 
 // Renderer
 const renderer = new THREE.WebGLRenderer({antialias:true});
@@ -45,38 +45,31 @@ document.body.appendChild(renderer.domElement);
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-// Lights
-scene.add(new THREE.AmbientLight(0x404040));
+// 🌗 Lighting (important for day/night effect)
+scene.add(new THREE.AmbientLight(0x222222)); // darker ambient
 
 const sun = new THREE.PointLight(0xffffff, 2);
-sun.position.set(5,3,5);
+sun.position.set(10, 0, 10); // better direction
 scene.add(sun);
 
 // Texture loader
 const loader = new THREE.TextureLoader();
 
-// 🌍 Earth
+// 🌍 Earth (FIXED MATERIAL)
 const earth = new THREE.Mesh(
     new THREE.SphereGeometry(1, 64, 64),
     new THREE.MeshStandardMaterial({
         map: loader.load("earth.jpg"),
-        emissive: 0x222222,
+
+        emissive: 0xffffff,
         emissiveMap: loader.load("earth_night.jpg"),
-        emissiveIntensity: 0.6
+        emissiveIntensity: 1.5,
+
+        roughness: 1,
+        metalness: 0
     })
 );
 scene.add(earth);
-
-// ☁️ Clouds
-const clouds = new THREE.Mesh(
-    new THREE.SphereGeometry(1.02, 64, 64),
-    new THREE.MeshStandardMaterial({
-        map: loader.load("clouds.png"),
-        transparent: true,
-        opacity: 0.4
-    })
-);
-earth.add(clouds);
 
 // 🌫️ Atmosphere
 const atmosphere = new THREE.Mesh(
@@ -93,39 +86,40 @@ scene.add(atmosphere);
 const starGeo = new THREE.BufferGeometry();
 let starPos = [];
 
-for(let i=0;i<15000;i++){
-    starPos.push((Math.random()-0.5)*3000);
-    starPos.push((Math.random()-0.5)*3000);
-    starPos.push((Math.random()-0.5)*3000);
+for(let i=0;i<20000;i++){
+    starPos.push((Math.random()-0.5)*4000);
+    starPos.push((Math.random()-0.5)*4000);
+    starPos.push((Math.random()-0.5)*4000);
 }
 
 starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos,3));
 
 const stars = new THREE.Points(
     starGeo,
-    new THREE.PointsMaterial({color:0xffffff,size:0.7})
+    new THREE.PointsMaterial({color:0xffffff,size:0.6})
 );
 scene.add(stars);
 
-// ✨ Galaxy background
-const galaxyGeo = new THREE.SphereGeometry(1000, 64, 64);
-const galaxyMat = new THREE.MeshBasicMaterial({
-    map: loader.load("https://threejs.org/examples/textures/galaxy_starfield.png"),
-    side: THREE.BackSide
-});
-const galaxy = new THREE.Mesh(galaxyGeo, galaxyMat);
+// 🌌 Galaxy background
+const galaxy = new THREE.Mesh(
+    new THREE.SphereGeometry(2000, 64, 64),
+    new THREE.MeshBasicMaterial({
+        map: loader.load("https://threejs.org/examples/textures/galaxy_starfield.png"),
+        side: THREE.BackSide
+    })
+);
 scene.add(galaxy);
 
-// 🪐 Planets
+// 🪐 Planets (far + slow)
 const planet1 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.3,32,32),
-    new THREE.MeshStandardMaterial({color:0xff8844})
+    new THREE.SphereGeometry(0.5,32,32),
+    new THREE.MeshStandardMaterial({color:0xaaaaaa})
 );
 scene.add(planet1);
 
 const planet2 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.2,32,32),
-    new THREE.MeshStandardMaterial({color:0x44aaff})
+    new THREE.SphereGeometry(0.7,32,32),
+    new THREE.MeshStandardMaterial({color:0x8888ff})
 );
 scene.add(planet2);
 
@@ -144,23 +138,22 @@ function animate(){
     requestAnimationFrame(animate);
 
     if(isSpinning){
-        earth.rotation.y += 0.0008;
-        clouds.rotation.y += 0.0012;
+        earth.rotation.y += 0.0006; // slow realistic
     }
 
-    // Planets orbit
-    angle += 0.01;
+    // Slow orbit
+    angle += 0.001;
 
     planet1.position.set(
-        Math.cos(angle)*3,
-        0,
-        Math.sin(angle)*3
+        Math.cos(angle)*20,
+        2,
+        Math.sin(angle)*20
     );
 
     planet2.position.set(
-        Math.cos(angle*1.5)*4,
-        Math.sin(angle*1.5),
-        Math.sin(angle*1.5)*4
+        Math.cos(angle*0.7)*30,
+        -3,
+        Math.sin(angle*0.7)*30
     );
 
     controls.update();
