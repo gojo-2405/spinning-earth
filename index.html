@@ -58,6 +58,7 @@ light.position.set(5,3,5);
 scene.add(light);
 
 // Earth
+const textureLoader = new THREE.TextureLoader();
 const earthTexture = textureLoader.load("earth.jpg");
 const earth = new THREE.Mesh(
     new THREE.SphereGeometry(1,64,64),
