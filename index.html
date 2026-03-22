@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Earth Pro UI</title>
+<title>3D Earth Pro</title>
 
 <style>
 body { margin:0; overflow:hidden; background:black; }
@@ -40,38 +40,44 @@ body { margin:0; overflow:hidden; background:black; }
 <script>
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
 camera.position.z = 3;
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Controls
-const controls = new THREE.OrbitControls(camera,renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.autoRotate = false;
 
 // Lights
 scene.add(new THREE.AmbientLight(0x888888));
-const light = new THREE.PointLight(0xffffff,2);
+const light = new THREE.PointLight(0xffffff, 2);
 light.position.set(5,3,5);
 scene.add(light);
 
-// Earth
+// Texture
 const textureLoader = new THREE.TextureLoader();
 const earthTexture = textureLoader.load("earth.jpg");
+
+// Earth
 const earth = new THREE.Mesh(
     new THREE.SphereGeometry(1,64,64),
-    new THREE.MeshStandardMaterial({map:earthTexture})
+    new THREE.MeshStandardMaterial({ map: earthTexture })
 );
 scene.add(earth);
 
 // Atmosphere
-const atm = new THREE.Mesh(
+const atmosphere = new THREE.Mesh(
     new THREE.SphereGeometry(1.05,64,64),
-    new THREE.MeshBasicMaterial({color:0x3399ff,transparent:true,opacity:0.2})
+    new THREE.MeshBasicMaterial({
+        color:0x3399ff,
+        transparent:true,
+        opacity:0.2
+    })
 );
-scene.add(atm);
+scene.add(atmosphere);
 
 // Stars
 const starGeo = new THREE.BufferGeometry();
@@ -81,16 +87,14 @@ for(let i=0;i<8000;i++){
     starPos.push((Math.random()-0.5)*2000);
     starPos.push((Math.random()-0.5)*2000);
 }
-starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
+starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos,3));
 scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.7})));
 
-// Country borders group
+// Borders
 const borderGroup = new THREE.Group();
 earth.add(borderGroup);
 
-let countries = [];
-
-// Convert lat/lon → 3D
+// Convert lat/lon to 3D
 function latLonToVec3(lat, lon){
     const phi = (90-lat)*(Math.PI/180);
     const theta = (lon+180)*(Math.PI/180);
@@ -102,84 +106,70 @@ function latLonToVec3(lat, lon){
     );
 }
 
-// Load GeoJSON
+// Load countries
+let countries = [];
+
 fetch("countries.geo.json")
 .then(res=>res.json())
 .then(data=>{
     countries = data.features;
 
-    countries.forEach(country=>{
-        const geo = country.geometry;
-
-        if(geo.type === "Polygon"){
-            drawPolygon(geo.coordinates);
-        }
-        if(geo.type === "MultiPolygon"){
-            geo.coordinates.forEach(poly=>drawPolygon(poly));
-        }
+    countries.forEach(c=>{
+        drawBorders(c.geometry);
     });
 });
 
 // Draw borders
-function drawPolygon(coords){
-    coords.forEach(ring=>{
-        const points = ring.map(c=>{
-            const v = latLonToVec3(c[1],c[0]);
-            return v.multiplyScalar(1.01);
-        });
+function drawBorders(geo){
+    if(geo.type === "Polygon"){
+        geo.coordinates.forEach(drawRing);
+    }
 
-        const geo = new THREE.BufferGeometry().setFromPoints(points);
-        const line = new THREE.Line(
-            geo,
-            new THREE.LineBasicMaterial({color:0xffffff})
-        );
-        borderGroup.add(line);
+    if(geo.type === "MultiPolygon"){
+        geo.coordinates.forEach(poly=>{
+            poly.forEach(drawRing);
+        });
+    }
+}
+
+function drawRing(ring){
+    const points = ring.map(c=>{
+        return latLonToVec3(c[1],c[0]).multiplyScalar(1.01);
     });
+
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({color:0xffffff}));
+    borderGroup.add(line);
 }
 
 // Raycaster
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// Find country
-function findCountry(lat, lon){
-    for(let c of countries){
-        const geo = c.geometry;
+let isSpinning = true;
 
-        if(geo.type === "Polygon"){
-            if(pointInPolygon([lon,lat],geo.coordinates[0])){
-                return c.properties.name;
+// ⭐ BETTER COUNTRY DETECTION (NEAREST)
+function findNearestCountry(lat, lon){
+    let closest = null;
+    let minDist = 999;
+
+    countries.forEach(c=>{
+        const coords = c.geometry.coordinates[0]?.[0];
+        if(coords){
+            const center = coords[Math.floor(coords.length/2)];
+            const d = Math.abs(center[0]-lon) + Math.abs(center[1]-lat);
+
+            if(d < minDist){
+                minDist = d;
+                closest = c.properties.name;
             }
         }
+    });
 
-        if(geo.type === "MultiPolygon"){
-            for(let poly of geo.coordinates){
-                if(pointInPolygon([lon,lat],poly[0])){
-                    return c.properties.name;
-                }
-            }
-        }
-    }
-    return null;
+    return closest;
 }
 
-// Polygon check
-function pointInPolygon(point, vs){
-    let x=point[0], y=point[1], inside=false;
-
-    for(let i=0,j=vs.length-1;i<vs.length;j=i++){
-        let xi=vs[i][0], yi=vs[i][1];
-        let xj=vs[j][0], yj=vs[j][1];
-
-        let intersect=((yi>y)!=(yj>y)) &&
-        (x<(xj-xi)*(y-yi)/(yj-yi)+xi);
-
-        if(intersect) inside=!inside;
-    }
-    return inside;
-}
-
-// Hover + Click
+// Hover
 window.addEventListener("mousemove",event=>{
     mouse.x=(event.clientX/innerWidth)*2-1;
     mouse.y=-(event.clientY/innerHeight)*2+1;
@@ -193,11 +183,24 @@ window.addEventListener("mousemove",event=>{
         const lat=90-(Math.acos(p.y)*180/Math.PI);
         const lon=(Math.atan2(p.z,p.x)*180/Math.PI);
 
-        const country=findCountry(lat,lon);
+        const country=findNearestCountry(lat,lon);
 
         if(country){
             document.getElementById("info").innerText="🌍 "+country;
         }
+    }
+});
+
+// Click toggle spin
+window.addEventListener("click",(event)=>{
+    mouse.x=(event.clientX/innerWidth)*2-1;
+    mouse.y=-(event.clientY/innerHeight)*2+1;
+
+    raycaster.setFromCamera(mouse,camera);
+    const hit=raycaster.intersectObject(earth);
+
+    if(hit.length>0){
+        isSpinning = !isSpinning;
     }
 });
 
@@ -218,9 +221,11 @@ document.getElementById("searchBox").addEventListener("input",e=>{
 function animate(){
     requestAnimationFrame(animate);
 
-    earth.rotation.y+=0.0008;
-    controls.update();
+    if(isSpinning){
+        earth.rotation.y += 0.0008;
+    }
 
+    controls.update();
     renderer.render(scene,camera);
 }
 animate();
