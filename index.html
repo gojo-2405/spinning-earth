@@ -53,7 +53,9 @@
 
     // Texture
     const textureLoader = new THREE.TextureLoader();
-    const earthTexture = textureLoader.load("earth.jpg");
+    const earthTexture = textureLoader.load(
+        "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+    );
 
     const material = new THREE.MeshStandardMaterial({
         map: earthTexture
