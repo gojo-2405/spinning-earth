@@ -37,7 +37,7 @@ jobs:
       # 5. Run new container
       - name: Run container
         run: |
-          docker run -d -p 80:80 --name nginx-site nginx-site
+          docker run -d -p 8090:80 --name nginx-site nginx-site
 
       # 6. Verify deployment
       - name: Check running containers
