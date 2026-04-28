@@ -1,0 +1,44 @@
+name: Deploy Nginx Static Site
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    # 🔥 Fix GitHub warning (Node.js runtime future-proofing)
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      # 1. Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Stop old container if exists
+      - name: Stop old container
+        run: |
+          docker rm -f nginx-site || true
+
+      # 3. Remove old image (optional clean build)
+      - name: Clean old image
+        run: |
+          docker rmi nginx-site || true
+
+      # 4. Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t nginx-site .
+
+      # 5. Run new container
+      - name: Run container
+        run: |
+          docker run -d -p 80:80 --name nginx-site nginx-site
+
+      # 6. Verify deployment
+      - name: Check running containers
+        run: docker ps
