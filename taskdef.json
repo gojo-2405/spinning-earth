@@ -1,0 +1,34 @@
+{
+    "family": "earth",
+    "taskRoleArn": "arn:aws:iam::463367046625:role/ecsTaskExecutionRole-ssm",
+    "containerDefinitions": [
+      {
+        "name": "earth",
+        "image": "463367046625.dkr.ecr.eu-north-1.amazonaws.com/earth:GIT_COMMIT",
+        "cpu": 300,
+        "memory": 300,
+        "memoryReservation": 200,
+        "volumesFrom": [],
+        "portMappings": [
+          {
+            "hostPort": 0,
+            "containerPort": 80,
+            "protocol": "tcp"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "GROUP_NAME",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "earth"
+          }
+        },
+        "essential": true,
+        "environment": [
+        ],
+        "mountPoints": []
+      }
+    ]
+  }
+  
