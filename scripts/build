@@ -12,7 +12,7 @@ echo "Docker build was failed"
 exit 1
 fi
 docker images -q $ECR_REPO
-GET_LOGIN=$(aws ecr get-login --no-include-email --region us-east-1 --profile testuser)
+GET_LOGIN=$(aws ecr get-login --no-include-email --region eu-north-1 --profile testuser)
 IMAGE_ID=$(docker images -q $ECR_REPO | awk "NR==1{print $1}")
 echo $IMAGE_ID
 docker tag $IMAGE_ID $ECR_REPO:latest
@@ -22,10 +22,10 @@ $GET_LOGIN
 docker push $ECR_REPO:$DOCKER_BUILD_TAG && docker push $ECR_REPO:latest
 if [ $? -eq 0 ]; then
 echo "Docker Push got success"
-docker logout
+docker logout 463367046625.dkr.ecr.eu-north-1.amazonaws.com
 else
 echo "Docker Push was failed"
-docker logout
+docker logout 463367046625.dkr.ecr.eu-north-1.amazonaws.com
 exit 1
 fi
 }
@@ -33,7 +33,7 @@ fi
 
 if [[ "$GIT_BRANCH" == "development" || "$GIT_BRANCH" == "uat" || "$GIT_BRANCH" == "preprod" ]];
 then
-DevBuild
+startBuild
 elif [[ "$GIT_BRANCH" == "main" ]];
 then
 startBuild
